@@ -1,4 +1,15 @@
+from __future__ import annotations
 import ccxt
+
+
+TESTNET_URLS = {
+    "fapiPublic": "https://testnet.binancefuture.com/fapi/v1",
+    "fapiPublicV2": "https://testnet.binancefuture.com/fapi/v2",
+    "fapiPrivate": "https://testnet.binancefuture.com/fapi/v1",
+    "fapiPrivateV2": "https://testnet.binancefuture.com/fapi/v2",
+    "fapiPrivateV3": "https://testnet.binancefuture.com/fapi/v3",
+    "public": "https://testnet.binancefuture.com/fapi/v1",
+}
 
 
 class BinanceFuturesTestnet:
@@ -7,10 +18,13 @@ class BinanceFuturesTestnet:
             "apiKey": api_key,
             "secret": api_secret,
             "enableRateLimit": True,
-            "options": {"defaultType": "future"},
+            "options": {
+                "defaultType": "future",
+                "fetchCurrencies": False,  # skip sapi endpoints not available on testnet
+            },
         })
-        # Enforce testnet for safety.
-        self.exchange.set_sandbox_mode(True)
+        # Override URLs to point to testnet directly (sandbox mode is broken in latest ccxt)
+        self.exchange.urls["api"] = {**self.exchange.urls.get("api", {}), **TESTNET_URLS}
 
     def fetch_ohlcv(self, symbol: str, timeframe: str = "1m", limit: int = 200):
         return self.exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=limit)
@@ -39,10 +53,9 @@ class BinanceFuturesTestnet:
             raise ValueError("Order type must be market or limit")
         if side not in {"buy", "sell"}:
             raise ValueError("Side must be buy or sell")
-        params = {}
         if order_type == "limit" and price is None:
             raise ValueError("Limit orders require a price")
-        return self.exchange.create_order(symbol, order_type, side, amount, price, params)
+        return self.exchange.create_order(symbol, order_type, side, amount, price)
 
     def market_buy(self, symbol: str, amount: float):
         return self.create_order(symbol, "buy", "market", amount)

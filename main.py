@@ -1,3 +1,4 @@
+from __future__ import annotations
 import argparse
 
 from config.settings import load_settings
@@ -5,6 +6,9 @@ from bot.exchange import BinanceFuturesTestnet
 from bot.risk_manager import RiskLimits, RiskManager
 from bot.trader import Trader
 from strategies.rsi_oversold import RsiOversoldStrategy
+from strategies.macd_crossover import MacdCrossoverStrategy
+from strategies.bollinger_breakout import BollingerBreakoutStrategy
+from strategies.ema_crossover import EmaCrossoverStrategy
 from backtest.engine import BacktestEngine
 from utils.logger import get_logger
 
@@ -12,6 +16,12 @@ from utils.logger import get_logger
 def get_strategy(name: str):
     if name == "rsi_oversold":
         return RsiOversoldStrategy()
+    if name == "macd_crossover":
+        return MacdCrossoverStrategy()
+    if name == "bollinger_breakout":
+        return BollingerBreakoutStrategy()
+    if name == "ema_crossover":
+        return EmaCrossoverStrategy()
     raise ValueError(f"Unknown strategy: {name}")
 
 

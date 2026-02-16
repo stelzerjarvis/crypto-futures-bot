@@ -1,3 +1,4 @@
+from __future__ import annotations
 import pandas as pd
 import ta
 
@@ -12,5 +13,6 @@ def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
     df["macd_signal"] = macd.macd_signal()
     bb = ta.volatility.BollingerBands(close=df["close"], window=20, window_dev=2)
     df["bb_high"] = bb.bollinger_hband()
+    df["bb_mid"] = bb.bollinger_mavg()
     df["bb_low"] = bb.bollinger_lband()
     return df
