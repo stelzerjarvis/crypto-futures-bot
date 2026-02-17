@@ -57,7 +57,12 @@ class Trader:
 
                 if self.strategy.should_enter(df):
                     equity = self._get_equity()
-                    stop_loss, take_profit = self.risk_manager.compute_stop_take(latest_price)
+                    atr = float(df.iloc[-1]["atr"]) if "atr" in df.columns else 0.0
+                    if atr <= 0:
+                        self.logger.warning("ATR not ready. Skipping entry.")
+                        time.sleep(self.poll_seconds)
+                        continue
+                    stop_loss, take_profit = self.risk_manager.compute_stop_take(latest_price, atr)
                     size = self.risk_manager.position_size(equity, latest_price, stop_loss)
                     self.logger.info(
                         f"ENTER signal at {latest_price:.2f} | size={size:.4f} | SL={stop_loss:.2f} TP={take_profit:.2f}"

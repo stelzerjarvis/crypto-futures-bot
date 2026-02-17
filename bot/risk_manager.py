@@ -43,9 +43,12 @@ class RiskManager:
             raise ValueError("Stop loss distance cannot be zero")
         return risk_amount / stop_distance
 
-    def compute_stop_take(self, entry_price: float, risk_reward: float = 2.0, stop_pct: float = 0.01):
+    def compute_stop_take(self, entry_price: float, atr: float, risk_reward: float = 2.0, atr_mult: float = 1.5):
         if entry_price <= 0:
             raise ValueError("Entry price must be positive")
-        stop_loss = entry_price * (1 - stop_pct)
-        take_profit = entry_price * (1 + stop_pct * risk_reward)
+        if atr <= 0:
+            raise ValueError("ATR must be positive")
+        stop_distance = atr * atr_mult
+        stop_loss = entry_price - stop_distance
+        take_profit = entry_price + stop_distance * risk_reward
         return stop_loss, take_profit

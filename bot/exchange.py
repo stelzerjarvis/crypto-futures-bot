@@ -29,6 +29,39 @@ class BinanceFuturesTestnet:
     def fetch_ohlcv(self, symbol: str, timeframe: str = "1m", limit: int = 200):
         return self.exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=limit)
 
+    def fetch_ohlcv_extended(self, symbol: str, timeframe: str = "1m", limit: int = 200):
+        if limit <= 1000:
+            return self.exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=limit)
+
+        timeframe_ms = int(self.exchange.parse_timeframe(timeframe) * 1000)
+        all_ohlcv: list[list[float]] = []
+        since = None
+        remaining = limit
+
+        while remaining > 0:
+            batch_limit = min(1000, remaining)
+            batch = self.exchange.fetch_ohlcv(
+                symbol,
+                timeframe=timeframe,
+                since=since,
+                limit=batch_limit,
+            )
+            if not batch:
+                break
+            if all_ohlcv:
+                last_ts = all_ohlcv[-1][0]
+                while batch and batch[0][0] <= last_ts:
+                    batch = batch[1:]
+                if not batch:
+                    break
+            all_ohlcv.extend(batch)
+            remaining = limit - len(all_ohlcv)
+            if len(batch) < batch_limit:
+                break
+            since = all_ohlcv[-1][0] + timeframe_ms
+
+        return all_ohlcv[:limit]
+
     def fetch_order_book(self, symbol: str, limit: int = 50):
         return self.exchange.fetch_order_book(symbol, limit=limit)
 
