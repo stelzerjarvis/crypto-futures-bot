@@ -7,3 +7,4 @@ websockets
 openai
 requests
 numpy
+python-telegram-bot>=20.0

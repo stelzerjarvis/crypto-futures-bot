@@ -69,6 +69,73 @@ class TradeDatabase:
             rows = cursor.fetchall()
         return rows
 
+    def fetch_closed_trades(self, limit: int = 10) -> list[sqlite3.Row]:
+        if limit <= 0:
+            return []
+        with self._lock:
+            cursor = self._conn.execute(
+                """
+                SELECT * FROM trades
+                WHERE status != 'OPEN' AND exit_time IS NOT NULL
+                ORDER BY datetime(exit_time) DESC
+                LIMIT ?
+                """,
+                (int(limit),),
+            )
+            return cursor.fetchall()
+
+    def fetch_trade_stats(self) -> dict[str, Any]:
+        with self._lock:
+            cursor = self._conn.execute(
+                """
+                SELECT asset, direction, pnl, pnl_pct
+                FROM trades
+                WHERE status != 'OPEN' AND pnl IS NOT NULL
+                """
+            )
+            rows = cursor.fetchall()
+        total = len(rows)
+        total_pnl = sum(float(row['pnl'] or 0.0) for row in rows)
+        wins = sum(1 for row in rows if (row['pnl'] or 0.0) > 0)
+        losses = total - wins
+        win_rate = (wins / total) if total else 0.0
+        avg = (total_pnl / total) if total else 0.0
+
+        def _row_summary(candidate: sqlite3.Row | None) -> dict[str, Any] | None:
+            if candidate is None:
+                return None
+            return {
+                'asset': candidate['asset'],
+                'direction': candidate['direction'],
+                'pnl': float(candidate['pnl'] or 0.0),
+                'pnl_pct': float(candidate['pnl_pct'] or 0.0) if candidate['pnl_pct'] is not None else None,
+            }
+
+        best_row = max(rows, key=lambda row: float(row['pnl'] if row['pnl'] is not None else float('-inf')), default=None)
+        worst_row = min(rows, key=lambda row: float(row['pnl'] if row['pnl'] is not None else float('inf')), default=None)
+        return {
+            'total': total,
+            'wins': wins,
+            'losses': losses,
+            'win_rate': win_rate,
+            'total_pnl': total_pnl,
+            'avg': avg,
+            'best': _row_summary(best_row),
+            'worst': _row_summary(worst_row),
+        }
+
+    def fetch_trades_since(self, since: str) -> list[sqlite3.Row]:
+        with self._lock:
+            cursor = self._conn.execute(
+                """
+                SELECT * FROM trades
+                WHERE status != 'OPEN' AND exit_time IS NOT NULL AND exit_time >= ?
+                ORDER BY datetime(exit_time) DESC
+                """,
+                (since,),
+            )
+            return cursor.fetchall()
+
     def realized_pnl(self, since: str | None = None) -> float:
         query = "SELECT COALESCE(SUM(pnl), 0) FROM trades WHERE status != 'OPEN'"
         params: tuple[Any, ...] = ()

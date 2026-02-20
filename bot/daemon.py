@@ -12,6 +12,7 @@ from bot.exchange import BinanceFuturesTestnet
 from bot.multi_timeframe import MultiTimeframeAnalyzer, MultiTimeframeResult, TimeframeSnapshot
 from bot.notifier import Notifier
 from bot.risk_manager import RiskLimits, RiskManager
+from bot.telegram_bot import TelegramCommandBot
 from config.settings import Settings
 from db.models import TradeDatabase
 from strategies.divergence_4ma import Divergence4MAStrategy, EntrySignal
@@ -60,6 +61,7 @@ class TradingDaemon:
             enabled=settings.mike_enabled,
         )
         self.db = TradeDatabase()
+        self.telegram_bot = TelegramCommandBot(self.exchange, self.db, self.settings)
         self.reference_symbol = normalize_symbol(settings.reference_symbol)
         seen: Dict[str, None] = {}
         self.assets = []
@@ -117,6 +119,7 @@ class TradingDaemon:
     # ------------------------------------------------------------------
     def run(self) -> None:
         self.logger.info('Starting trading daemon …')
+        self.telegram_bot.start()
         while True:
             now = datetime.now(timezone.utc)
             try:

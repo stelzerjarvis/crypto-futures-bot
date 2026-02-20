@@ -6,6 +6,7 @@ from bot.exchange import BinanceFuturesTestnet
 from bot.advisor import Advisor
 from bot.daemon import TradingDaemon
 from bot.risk_manager import RiskLimits, RiskManager
+from bot.telegram_bot import TelegramCommandBot
 from bot.trader import Trader
 from strategies.rsi_oversold import RsiOversoldStrategy
 from strategies.macd_crossover import MacdCrossoverStrategy
@@ -13,6 +14,7 @@ from strategies.bollinger_breakout import BollingerBreakoutStrategy
 from strategies.ema_crossover import EmaCrossoverStrategy
 from backtest.engine import BacktestEngine
 from utils.logger import get_logger
+from db.models import TradeDatabase
 
 
 def get_strategy(name: str):
@@ -78,6 +80,14 @@ def run_daemon(_args):
     daemon.run()
 
 
+def run_telegram(_args):
+    settings = load_settings()
+    exchange = BinanceFuturesTestnet(settings.api_key, settings.api_secret)
+    db = TradeDatabase()
+    bot = TelegramCommandBot(exchange, db, settings)
+    bot.run_forever()
+
+
 def build_parser():
     parser = argparse.ArgumentParser(description='Crypto Futures Bot (Binance Testnet)')
     subparsers = parser.add_subparsers(dest='command')
@@ -94,6 +104,7 @@ def build_parser():
     backtest.add_argument('--days', type=int, default=90, help='Days of historical data')
 
     subparsers.add_parser('daemon', help='Run continuous divergence 4MA daemon')
+    subparsers.add_parser('telegram', help='Run Telegram command bot')
 
     return parser
 
@@ -108,6 +119,8 @@ def main():
         run_backtest(args)
     elif args.command == 'daemon':
         run_daemon(args)
+    elif args.command == 'telegram':
+        run_telegram(args)
     else:
         parser.print_help()
 
