@@ -75,3 +75,10 @@ class Notifier:
 
     def daily_recap(self, body_lines: list[str]) -> None:
         self.summary("Daily Recap", body_lines)
+
+    def vault_skim(self, asset: str, skim: float, pnl: float, vault_total: float) -> None:
+        pct = (skim / pnl * 100) if pnl > 0 else 0
+        self._send(
+            f"🏦 Vault skim: ${skim:.2f} ({pct:.0f}% of ${pnl:.2f} profit from {asset})\n"
+            f"💰 Vault total: ${vault_total:.2f}"
+        )

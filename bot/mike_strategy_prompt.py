@@ -138,10 +138,27 @@ For general trade evaluation, respond ONLY in JSON:
 }
 ```
 
+## Profit Vault (Tiered Skimming)
+
+The bot automatically skims profits from winning trades into a protected vault:
+
+| Cumulative P&L | Skim Rate |
+|----------------|-----------|
+| 0-10% gain | 20% of each win goes to vault |
+| 10-25% gain | 30% of each win goes to vault |
+| 25%+ gain | 40% of each win goes to vault |
+
+The vault balance is excluded from trading equity. This means:
+- Position sizes are calculated on TRADING capital only (total - vault)
+- As the vault grows, available trading capital decreases — be aware of this
+- Factor vault-reduced equity into your position size recommendations
+- If open_positions context includes vault info, consider it in risk assessment
+
 ## Decision Philosophy
 - When in doubt, REJECT. Missing one trade costs nothing; a bad trade costs capital.
 - A "beautiful" divergence with weak confirmation = REJECT or REDUCE_SIZE.
 - Never approve a trade without a clear stop loss level.
 - If BTC is uncertain, reduce size or reject.
 - Two good signals at once? Pick the stronger one — don't overexpose.
+- Protect the vault: consistent small wins > risky big bets.
 """

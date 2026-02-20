@@ -14,6 +14,7 @@ from bot.notifier import Notifier
 from bot.risk_manager import RiskLimits, RiskManager
 from bot.telegram_bot import TelegramCommandBot
 from config.settings import Settings
+from bot.vault import ProfitVault
 from db.models import TradeDatabase
 from strategies.divergence_4ma import Divergence4MAStrategy, EntrySignal
 from utils.logger import get_logger
@@ -61,6 +62,7 @@ class TradingDaemon:
             enabled=settings.mike_enabled,
         )
         self.db = TradeDatabase()
+        self.vault = ProfitVault()
         self.telegram_bot = TelegramCommandBot(self.exchange, self.db, self.settings)
         self.reference_symbol = normalize_symbol(settings.reference_symbol)
         seen: Dict[str, None] = {}
@@ -119,6 +121,10 @@ class TradingDaemon:
     # ------------------------------------------------------------------
     def run(self) -> None:
         self.logger.info('Starting trading daemon …')
+        # Initialize vault with current equity as baseline
+        equity = self._account_equity()
+        if equity is not None:
+            self.vault.initialize(equity)
         self.telegram_bot.start()
         while True:
             now = datetime.now(timezone.utc)
@@ -254,6 +260,11 @@ class TradingDaemon:
         )
         self.db.log_trade_update(trade_id, reason, {'exit_price': exit_price})
         self.risk_manager.update_daily_pnl(pnl)
+        # Vault: skim profits from winning trades
+        skim = self.vault.process_trade_close(trade_id, pnl)
+        if skim > 0:
+            vault_state = self.vault.get_state()
+            self.notifier.vault_skim(asset, skim, pnl, vault_state['vault_balance'])
         self.notifier.trade_closed(asset, direction, exit_price, pnl, pnl_pct)
         self.logger.info('Trade %s closed (%s) at %.4f | pnl=%.2f', trade_id, reason, exit_price, pnl)
 
@@ -464,9 +475,13 @@ class TradingDaemon:
         entry_price = entry_price or signal.entry_price
         stop_loss = decision.stop_loss or signal.stop_loss
         take_profit = decision.take_profit or signal.take_profit
-        equity = self._account_equity()
-        if equity is None:
+        raw_equity = self._account_equity()
+        if raw_equity is None:
             self.logger.warning('Cannot determine account equity; skipping trade for %s', asset)
+            return
+        equity = self.vault.trading_equity(raw_equity)
+        if equity <= 0:
+            self.logger.warning('No trading equity available (all in vault); skipping %s', asset)
             return
         if stop_loss is None or entry_price is None:
             self.logger.warning('Missing stops for %s', asset)
