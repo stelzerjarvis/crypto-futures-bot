@@ -109,3 +109,12 @@ class BinanceFuturesTestnet:
             raise ValueError("Side must be buy or sell")
         params = {"reduceOnly": True}
         return self.exchange.create_order(symbol, "market", side, amount, None, params)
+
+    def place_stop_loss(self, symbol: str, side: str, amount: float, stop_price: float):
+        """Place a stop-market order as a safety net."""
+        params = {"stopPrice": stop_price, "reduceOnly": True}
+        return self.exchange.create_order(symbol, "STOP_MARKET", side, amount, None, params)
+
+    def cancel_orders(self, symbol: str):
+        """Cancel all open orders for a symbol."""
+        return self.exchange.cancel_all_orders(symbol)

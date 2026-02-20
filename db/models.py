@@ -69,6 +69,23 @@ class TradeDatabase:
             rows = cursor.fetchall()
         return rows
 
+    def realized_pnl(self, since: str | None = None) -> float:
+        query = "SELECT COALESCE(SUM(pnl), 0) FROM trades WHERE status != 'OPEN'"
+        params: tuple[Any, ...] = ()
+        if since:
+            query += " AND exit_time >= ?"
+            params = (since,)
+        with self._lock:
+            cursor = self._conn.execute(query, params)
+            value = cursor.fetchone()[0]
+        return float(value or 0.0)
+
+    def closed_trades_since(self, since: str) -> list[sqlite3.Row]:
+        query = "SELECT * FROM trades WHERE status != 'OPEN' AND exit_time >= ?"
+        with self._lock:
+            cursor = self._conn.execute(query, (since,))
+            return cursor.fetchall()
+
     def _insert(self, table: str, data: dict[str, Any]) -> int:
         columns = ", ".join(data.keys())
         placeholders = ", ".join(["?"] * len(data))

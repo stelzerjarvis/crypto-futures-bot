@@ -143,21 +143,20 @@ class TradingDaemon:
 
     def _check_btc_emergency(self) -> None:
         try:
-            candles = self.exchange.fetch_ohlcv(self.reference_symbol, timeframe='1m', limit=3)
+            candles = self.exchange.fetch_ohlcv(self.reference_symbol, timeframe='1m', limit=5)
         except Exception as exc:  # noqa: BLE001
             self.logger.warning('Failed to fetch BTC candles: %s', exc)
             return
         if not candles:
             return
-        _, open_price, high_price, low_price, close_price, _ = candles[-1]
-        upper = max(0.0, high_price - max(open_price, close_price))
-        lower = max(0.0, min(open_price, close_price) - low_price)
-        wick = max(upper, lower)
-        reference = max(close_price, 1e-8)
-        wick_pct = wick / reference
-        if wick_pct >= self.settings.btc_volatility_threshold:
+        first_open = candles[0][1]
+        overall_high = max(c[2] for c in candles)
+        overall_low = min(c[3] for c in candles)
+        reference = max(first_open, 1e-8)
+        range_pct = (overall_high - overall_low) / reference
+        if range_pct >= self.settings.btc_volatility_threshold:
             reason = (
-                f"BTC wick {wick_pct:.2%} >= "
+                f"BTC 5m range {range_pct:.2%} >= "
                 f"{self.settings.btc_volatility_threshold:.2%}"
             )
             self.logger.warning('Emergency exit triggered: %s', reason)
@@ -207,6 +206,13 @@ class TradingDaemon:
         asset = trade['asset']
         self.db.update_trade(trade_id, stop_loss=breakeven)
         self.db.log_trade_update(trade_id, 'breakeven_move', {'stop_loss': breakeven})
+        symbol = self.asset_symbol_map.get(asset, asset)
+        try:
+            self.exchange.cancel_orders(symbol)
+            sl_side = "sell" if str(trade['direction']).upper() == "LONG" else "buy"
+            self.exchange.place_stop_loss(symbol, sl_side, float(trade['position_size']), breakeven)
+        except Exception as exc:  # noqa: BLE001
+            self.logger.warning('Failed to update exchange SL for %s: %s', asset, exc)
         self.notifier.stop_loss_moved(asset, breakeven)
         self.logger.info('Moved SL to breakeven for %s (trade %s)', asset, trade_id)
 
@@ -308,6 +314,24 @@ class TradingDaemon:
                 if not asset_context.snapshots:
                     continue
                 self._evaluate_signals(asset, asset_context, btc_context)
+                entry_snap = asset_context.snapshots.get('15m')
+                if entry_snap:
+                    btc_snap = btc_context.snapshots.get('15m') if btc_context else None
+                    self.db.log_market_snapshot(
+                        asset=asset,
+                        timeframe='15m',
+                        btc_price=btc_snap.price if btc_snap else None,
+                        btc_rsi=btc_snap.rsi if btc_snap else None,
+                        asset_price=entry_snap.price,
+                        asset_rsi=entry_snap.rsi,
+                        ma_9=entry_snap.latest.get('sma_9'),
+                        ma_21=entry_snap.latest.get('sma_21'),
+                        ma_45=entry_snap.latest.get('sma_45'),
+                        ma_100=entry_snap.latest.get('sma_100'),
+                        ma_order=entry_snap.ma_order,
+                        divergence_detected=bool(entry_snap.divergences),
+                        divergence_type=entry_snap.divergences[0].kind if entry_snap.divergences else None,
+                    )
             except Exception as exc:  # noqa: BLE001
                 self.logger.error('Analysis failed for %s: %s', asset, exc)
 
@@ -462,6 +486,12 @@ class TradingDaemon:
         except Exception as exc:  # noqa: BLE001
             self.logger.error('Order placement failed for %s: %s', asset, exc)
             return
+        sl_side = 'sell' if direction == 'LONG' else 'buy'
+        try:
+            self.exchange.place_stop_loss(symbol, sl_side, size, stop_loss)
+            self.logger.info('Exchange SL placed for %s at %.4f', asset, stop_loss)
+        except Exception as exc:  # noqa: BLE001
+            self.logger.warning('Failed to place exchange SL for %s: %s', asset, exc)
         self.notifier.trade_opened(asset, direction, entry_price, stop_loss, take_profit, self.settings.default_leverage)
         asset_snapshots = context_payload['asset_snapshots']
         trade_id = self.db.record_trade(
@@ -524,15 +554,8 @@ class TradingDaemon:
         self.notifier.summary('4h Summary', lines)
 
     def _realized_pnl(self, since: datetime | None = None) -> float:
-        query = "SELECT COALESCE(SUM(pnl), 0) FROM trades WHERE status != 'OPEN'"
-        params: Tuple[Any, ...] = ()
-        if since is not None:
-            query += " AND exit_time >= ?"
-            params = (since.isoformat(timespec='seconds'),)
-        with self.db._lock:  # type: ignore[attr-defined]
-            cursor = self.db._conn.execute(query, params)  # type: ignore[attr-defined]
-            value = cursor.fetchone()[0]
-        return float(value or 0.0)
+        since_str = since.isoformat(timespec='seconds') if since else None
+        return self.db.realized_pnl(since=since_str)
 
     def _send_daily_recap(self, now: datetime) -> None:
         since = now - self.DAILY_INTERVAL
@@ -549,11 +572,7 @@ class TradingDaemon:
         self.notifier.daily_recap(lines)
 
     def _closed_trades_since(self, since: datetime) -> list:
-        query = "SELECT * FROM trades WHERE status != 'OPEN' AND exit_time >= ?"
-        params = (since.isoformat(timespec='seconds'),)
-        with self.db._lock:  # type: ignore[attr-defined]
-            cursor = self.db._conn.execute(query, params)  # type: ignore[attr-defined]
-            return cursor.fetchall()
+        return self.db.closed_trades_since(since.isoformat(timespec='seconds'))
 
 
 __all__ = ['TradingDaemon', 'normalize_symbol', 'asset_key']
