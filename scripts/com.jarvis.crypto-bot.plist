@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.jarvis.crypto-bot</string>
+
+    <key>Program</key>
+    <string>/usr/bin/python3</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>main.py</string>
+        <string>daemon</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/jarvis/Projects/crypto-futures-bot</string>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>DOTENV_PATH</key>
+        <string>/Users/jarvis/Projects/crypto-futures-bot/.env</string>
+        <key>PYTHONUNBUFFERED</key>
+        <string>1</string>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/Users/jarvis/Projects/crypto-futures-bot/logs/daemon.out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/jarvis/Projects/crypto-futures-bot/logs/daemon.err.log</string>
+</dict>
+</plist>
