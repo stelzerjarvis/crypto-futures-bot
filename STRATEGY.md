@@ -13,13 +13,13 @@ Bot (continuous analysis) → Signal detected → Context sent to Mike → Mike 
 
 | Crypto | Futures Ticker | Priority |
 |--------|---------------|----------|
-| ROS | ROSUSDT | High |
-| DETA | DETAUSDT | High |
+| ROSE | ROSEUSDT | High |
+| THETA | THETAUSDT | High |
 | ATOM | ATOMUSDT | High |
 | AXS | AXSUSDT | High |
 | SOL | SOLUSDT | High |
-| AVE (AAVE) | AAVEUSDT | High |
-| BET | BETUSDT | High |
+| AAVE | AAVEUSDT | High |
+| BNB | BNBUSDT | High |
 
 **Reference**: BTCUSDT (not traded, used as market filter)
 
@@ -118,7 +118,7 @@ DAILY → 4 HOURS → 1 HOUR → 15 MINUTES
 ## 9. Configurable Parameters
 
 ```python
-ASSETS = ["ROSUSDT", "DETAUSDT", "ATOMUSDT", "AXSUSDT", "SOLUSDT", "AAVEUSDT", "BETUSDT"]
+ASSETS = ["ROSEUSDT", "THETAUSDT", "ATOMUSDT", "AXSUSDT", "SOLUSDT", "AAVEUSDT", "BNBUSDT"]
 REFERENCE = "BTCUSDT"
 LEVERAGE = 5
 MA_PERIODS = [9, 21, 45, 100]
