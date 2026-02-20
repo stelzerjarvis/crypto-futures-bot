@@ -151,22 +151,12 @@ class Advisor:
         return candles
 
     def _system_prompt(self) -> str:
-        return (
-            "You are Mike, an AI quant trader who must decide whether to allow a trade. "
-            "Evaluate market regime, momentum, volume, and risk/reward. "
-            "Respond ONLY in JSON with keys: decision (GO/NO_GO/REDUCE_SIZE), "
-            "confidence (1-10 integer), reasoning, position_size_pct (0-100), "
-            "stop_loss, take_profit. Use the provided context; be concise and risk-aware."
-        )
+        from bot.mike_strategy_prompt import STRATEGY_CONTEXT
+        return STRATEGY_CONTEXT
 
     def _signal_system_prompt(self) -> str:
-        return (
-            "You are Mike, a senior trader approving crypto futures setups. "
-            "Decide whether to APPROVE, REJECT, or MODIFY the proposed trade. "
-            "Consider divergence alignment, BTC context, confirmations, and risk. "
-            "Respond ONLY in JSON with keys: decision, confidence, reasoning, position_size_pct, "
-            "entry, stop_loss, take_profit, notes."
-        )
+        from bot.mike_strategy_prompt import STRATEGY_CONTEXT
+        return STRATEGY_CONTEXT
 
     def _user_prompt(self, context: dict[str, Any]) -> str:
         return (
