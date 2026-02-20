@@ -3,6 +3,7 @@ import argparse
 
 from config.settings import load_settings
 from bot.exchange import BinanceFuturesTestnet
+from bot.advisor import Advisor
 from bot.risk_manager import RiskLimits, RiskManager
 from bot.trader import Trader
 from strategies.rsi_oversold import RsiOversoldStrategy
@@ -46,7 +47,13 @@ def run_trade(args):
         max_daily_loss=settings.max_daily_loss,
     )
     risk_manager = RiskManager(limits)
-    trader = Trader(exchange, strategy, risk_manager, symbol, timeframe=args.timeframe)
+    advisor = Advisor(
+        exchange=exchange,
+        timeframe=args.timeframe,
+        model=settings.mike_model,
+        enabled=settings.mike_enabled,
+    )
+    trader = Trader(exchange, strategy, risk_manager, symbol, timeframe=args.timeframe, advisor=advisor)
     trader.run()
 
 

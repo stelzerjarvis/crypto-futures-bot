@@ -16,6 +16,8 @@ class Settings:
     max_positions: int
     max_daily_loss: float
     testnet: bool
+    mike_model: str
+    mike_enabled: bool
 
 
 
@@ -35,4 +37,6 @@ def load_settings() -> Settings:
         max_positions=int(os.getenv("MAX_POSITIONS", "3")),
         max_daily_loss=float(os.getenv("MAX_DAILY_LOSS", "0.05")),
         testnet=True,
+        mike_model=os.getenv("MIKE_MODEL", "gpt-4o"),
+        mike_enabled=os.getenv("MIKE_ENABLED", "true").lower() in {"1", "true", "yes", "y", "on"},
     )
