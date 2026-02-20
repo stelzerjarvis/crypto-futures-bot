@@ -4,3 +4,6 @@ ta
 python-dotenv
 colorama
 websockets
+openai
+requests
+numpy

@@ -1,4 +1,15 @@
+from __future__ import annotations
 import ccxt
+
+
+TESTNET_URLS = {
+    "fapiPublic": "https://testnet.binancefuture.com/fapi/v1",
+    "fapiPublicV2": "https://testnet.binancefuture.com/fapi/v2",
+    "fapiPrivate": "https://testnet.binancefuture.com/fapi/v1",
+    "fapiPrivateV2": "https://testnet.binancefuture.com/fapi/v2",
+    "fapiPrivateV3": "https://testnet.binancefuture.com/fapi/v3",
+    "public": "https://testnet.binancefuture.com/fapi/v1",
+}
 
 
 class BinanceFuturesTestnet:
@@ -7,13 +18,49 @@ class BinanceFuturesTestnet:
             "apiKey": api_key,
             "secret": api_secret,
             "enableRateLimit": True,
-            "options": {"defaultType": "future"},
+            "options": {
+                "defaultType": "future",
+                "fetchCurrencies": False,  # skip sapi endpoints not available on testnet
+            },
         })
-        # Enforce testnet for safety.
-        self.exchange.set_sandbox_mode(True)
+        # Override URLs to point to testnet directly (sandbox mode is broken in latest ccxt)
+        self.exchange.urls["api"] = {**self.exchange.urls.get("api", {}), **TESTNET_URLS}
 
     def fetch_ohlcv(self, symbol: str, timeframe: str = "1m", limit: int = 200):
         return self.exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=limit)
+
+    def fetch_ohlcv_extended(self, symbol: str, timeframe: str = "1m", limit: int = 200):
+        if limit <= 1000:
+            return self.exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=limit)
+
+        timeframe_ms = int(self.exchange.parse_timeframe(timeframe) * 1000)
+        all_ohlcv: list[list[float]] = []
+        since = None
+        remaining = limit
+
+        while remaining > 0:
+            batch_limit = min(1000, remaining)
+            batch = self.exchange.fetch_ohlcv(
+                symbol,
+                timeframe=timeframe,
+                since=since,
+                limit=batch_limit,
+            )
+            if not batch:
+                break
+            if all_ohlcv:
+                last_ts = all_ohlcv[-1][0]
+                while batch and batch[0][0] <= last_ts:
+                    batch = batch[1:]
+                if not batch:
+                    break
+            all_ohlcv.extend(batch)
+            remaining = limit - len(all_ohlcv)
+            if len(batch) < batch_limit:
+                break
+            since = all_ohlcv[-1][0] + timeframe_ms
+
+        return all_ohlcv[:limit]
 
     def fetch_order_book(self, symbol: str, limit: int = 50):
         return self.exchange.fetch_order_book(symbol, limit=limit)
@@ -39,10 +86,9 @@ class BinanceFuturesTestnet:
             raise ValueError("Order type must be market or limit")
         if side not in {"buy", "sell"}:
             raise ValueError("Side must be buy or sell")
-        params = {}
         if order_type == "limit" and price is None:
             raise ValueError("Limit orders require a price")
-        return self.exchange.create_order(symbol, order_type, side, amount, price, params)
+        return self.exchange.create_order(symbol, order_type, side, amount, price)
 
     def market_buy(self, symbol: str, amount: float):
         return self.create_order(symbol, "buy", "market", amount)
@@ -63,3 +109,12 @@ class BinanceFuturesTestnet:
             raise ValueError("Side must be buy or sell")
         params = {"reduceOnly": True}
         return self.exchange.create_order(symbol, "market", side, amount, None, params)
+
+    def place_stop_loss(self, symbol: str, side: str, amount: float, stop_price: float):
+        """Place a stop-market order as a safety net."""
+        params = {"stopPrice": stop_price, "reduceOnly": True}
+        return self.exchange.create_order(symbol, "STOP_MARKET", side, amount, None, params)
+
+    def cancel_orders(self, symbol: str):
+        """Cancel all open orders for a symbol."""
+        return self.exchange.cancel_all_orders(symbol)

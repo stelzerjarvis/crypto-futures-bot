@@ -1,24 +1,36 @@
+from __future__ import annotations
 import argparse
 
 from config.settings import load_settings
 from bot.exchange import BinanceFuturesTestnet
+from bot.advisor import Advisor
+from bot.daemon import TradingDaemon
 from bot.risk_manager import RiskLimits, RiskManager
 from bot.trader import Trader
 from strategies.rsi_oversold import RsiOversoldStrategy
+from strategies.macd_crossover import MacdCrossoverStrategy
+from strategies.bollinger_breakout import BollingerBreakoutStrategy
+from strategies.ema_crossover import EmaCrossoverStrategy
 from backtest.engine import BacktestEngine
 from utils.logger import get_logger
 
 
 def get_strategy(name: str):
-    if name == "rsi_oversold":
+    if name == 'rsi_oversold':
         return RsiOversoldStrategy()
-    raise ValueError(f"Unknown strategy: {name}")
+    if name == 'macd_crossover':
+        return MacdCrossoverStrategy()
+    if name == 'bollinger_breakout':
+        return BollingerBreakoutStrategy()
+    if name == 'ema_crossover':
+        return EmaCrossoverStrategy()
+    raise ValueError(f'Unknown strategy: {name}')
 
 
 def normalize_symbol(symbol: str) -> str:
-    if "/" in symbol:
+    if '/' in symbol:
         return symbol
-    if symbol.endswith("USDT"):
+    if symbol.endswith('USDT'):
         base = symbol[:-4]
         return f"{base}/USDT"
     return symbol
@@ -36,7 +48,13 @@ def run_trade(args):
         max_daily_loss=settings.max_daily_loss,
     )
     risk_manager = RiskManager(limits)
-    trader = Trader(exchange, strategy, risk_manager, symbol, timeframe=args.timeframe)
+    advisor = Advisor(
+        exchange=exchange,
+        timeframe=args.timeframe,
+        model=settings.mike_model,
+        enabled=settings.mike_enabled,
+    )
+    trader = Trader(exchange, strategy, risk_manager, symbol, timeframe=args.timeframe, advisor=advisor)
     trader.run()
 
 
@@ -47,27 +65,35 @@ def run_backtest(args):
     symbol = normalize_symbol(args.symbol)
     engine = BacktestEngine(exchange, strategy, symbol, timeframe=args.timeframe)
     result = engine.run(days=args.days)
-    logger = get_logger("backtest")
+    logger = get_logger('backtest')
     logger.info(
         f"Backtest result | trades={result.trades} win_rate={result.win_rate:.2f} "
         f"pnl={result.pnl:.2f} max_dd={result.max_drawdown:.2f} sharpe={result.sharpe:.2f}"
     )
 
 
+def run_daemon(_args):
+    settings = load_settings()
+    daemon = TradingDaemon(settings)
+    daemon.run()
+
+
 def build_parser():
-    parser = argparse.ArgumentParser(description="Crypto Futures Bot (Binance Testnet)")
-    subparsers = parser.add_subparsers(dest="command")
+    parser = argparse.ArgumentParser(description='Crypto Futures Bot (Binance Testnet)')
+    subparsers = parser.add_subparsers(dest='command')
 
-    trade = subparsers.add_parser("trade", help="Run live paper trading")
-    trade.add_argument("--symbol", required=True, help="Symbol like BTC/USDT")
-    trade.add_argument("--strategy", required=True, help="Strategy name")
-    trade.add_argument("--timeframe", default="1m", help="Candle timeframe")
+    trade = subparsers.add_parser('trade', help='Run live paper trading')
+    trade.add_argument('--symbol', required=True, help='Symbol like BTC/USDT')
+    trade.add_argument('--strategy', required=True, help='Strategy name')
+    trade.add_argument('--timeframe', default='1m', help='Candle timeframe')
 
-    backtest = subparsers.add_parser("backtest", help="Run backtest")
-    backtest.add_argument("--symbol", required=True, help="Symbol like BTC/USDT")
-    backtest.add_argument("--strategy", required=True, help="Strategy name")
-    backtest.add_argument("--timeframe", default="1h", help="Candle timeframe")
-    backtest.add_argument("--days", type=int, default=90, help="Days of historical data")
+    backtest = subparsers.add_parser('backtest', help='Run backtest')
+    backtest.add_argument('--symbol', required=True, help='Symbol like BTC/USDT')
+    backtest.add_argument('--strategy', required=True, help='Strategy name')
+    backtest.add_argument('--timeframe', default='1h', help='Candle timeframe')
+    backtest.add_argument('--days', type=int, default=90, help='Days of historical data')
+
+    subparsers.add_parser('daemon', help='Run continuous divergence 4MA daemon')
 
     return parser
 
@@ -76,13 +102,15 @@ def main():
     parser = build_parser()
     args = parser.parse_args()
 
-    if args.command == "trade":
+    if args.command == 'trade':
         run_trade(args)
-    elif args.command == "backtest":
+    elif args.command == 'backtest':
         run_backtest(args)
+    elif args.command == 'daemon':
+        run_daemon(args)
     else:
         parser.print_help()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
