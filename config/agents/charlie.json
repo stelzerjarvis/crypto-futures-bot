@@ -1,0 +1,17 @@
+{
+  "name": "Charlie",
+  "emoji": "🟢",
+  "model": "gpt-5.2",
+  "strategy": "charlie_strategy",
+  "capital": 2500.0,
+  "db_path": "data/charlie_trades.db",
+  "log_file": "logs/charlie.log",
+  "decisions_log": "logs/charlie_decisions.jsonl",
+  "leverage": 5,
+  "risk_per_trade": 0.02,
+  "max_positions": 3,
+  "max_daily_loss": 0.05,
+  "assets": [],
+  "reference_symbol": "BTCUSDT",
+  "strategy_prompt": "bot.charlie_strategy_prompt"
+}

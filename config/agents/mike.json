@@ -1,0 +1,17 @@
+{
+  "name": "Mike",
+  "emoji": "🔵",
+  "model": "gpt-5.2",
+  "strategy": "divergence_4ma",
+  "capital": 2500.0,
+  "db_path": "data/mike_trades.db",
+  "log_file": "logs/mike.log",
+  "decisions_log": "logs/mike_decisions.jsonl",
+  "leverage": 5,
+  "risk_per_trade": 0.02,
+  "max_positions": 3,
+  "max_daily_loss": 0.05,
+  "assets": ["ROSEUSDT", "THETAUSDT", "ATOMUSDT", "AXSUSDT", "SOLUSDT", "AAVEUSDT", "BNBUSDT"],
+  "reference_symbol": "BTCUSDT",
+  "strategy_prompt": "bot.mike_strategy_prompt"
+}

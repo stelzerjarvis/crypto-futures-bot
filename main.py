@@ -103,8 +103,13 @@ def build_parser():
     backtest.add_argument('--timeframe', default='1h', help='Candle timeframe')
     backtest.add_argument('--days', type=int, default=90, help='Days of historical data')
 
-    subparsers.add_parser('daemon', help='Run continuous divergence 4MA daemon')
+    subparsers.add_parser('daemon', help='Run continuous divergence 4MA daemon (legacy)')
     subparsers.add_parser('telegram', help='Run Telegram command bot')
+
+    agent_parser = subparsers.add_parser('agent', help='Run agent-specific trading daemon')
+    agent_parser.add_argument('agent_id', help='Agent ID (e.g. mike, charlie)')
+
+    subparsers.add_parser('agents', help='List available agents')
 
     return parser
 
@@ -121,6 +126,14 @@ def main():
         run_daemon(args)
     elif args.command == 'telegram':
         run_telegram(args)
+    elif args.command == 'agent':
+        from bot.agent_daemon import run_agent
+        run_agent(args.agent_id)
+    elif args.command == 'agents':
+        from config.agent_config import list_agents, load_agent_config
+        for aid in list_agents():
+            cfg = load_agent_config(aid)
+            print(f"{cfg.emoji} {cfg.name} ({aid}) — strategy={cfg.strategy}, capital=${cfg.capital:.0f}")
     else:
         parser.print_help()
 
