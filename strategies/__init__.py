@@ -5,6 +5,7 @@ from strategies.macd_crossover import MacdCrossoverStrategy
 from strategies.bollinger_breakout import BollingerBreakoutStrategy
 from strategies.ema_crossover import EmaCrossoverStrategy
 from strategies.divergence_4ma import Divergence4MAStrategy
+from strategies.supply_demand import SupplyDemandStrategy
 
 __all__ = [
     "RsiOversoldStrategy",
@@ -12,4 +13,5 @@ __all__ = [
     "BollingerBreakoutStrategy",
     "EmaCrossoverStrategy",
     "Divergence4MAStrategy",
+    "SupplyDemandStrategy",
 ]
