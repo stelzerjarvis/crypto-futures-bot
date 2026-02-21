@@ -149,9 +149,11 @@ class AgentDaemon:
                 for asset in self.assets
             }
         elif config.strategy == "charlie_strategy":
-            # Placeholder — will be implemented when strategy spec arrives
-            self.logger.warning("Charlie strategy not yet implemented — using placeholder")
-            return {}
+            from strategies.supply_demand import SupplyDemandStrategy
+            return {
+                asset: SupplyDemandStrategy(reference_symbol=self.reference_symbol)
+                for asset in self.assets
+            }
         else:
             self.logger.error("Unknown strategy: %s", config.strategy)
             return {}

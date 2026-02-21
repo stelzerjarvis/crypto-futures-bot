@@ -11,7 +11,7 @@
   "risk_per_trade": 0.02,
   "max_positions": 3,
   "max_daily_loss": 0.05,
-  "assets": [],
+  "assets": ["ROSEUSDT", "THETAUSDT", "ATOMUSDT", "AXSUSDT", "SOLUSDT", "AAVEUSDT", "BNBUSDT"],
   "reference_symbol": "BTCUSDT",
   "strategy_prompt": "bot.charlie_strategy_prompt"
 }
