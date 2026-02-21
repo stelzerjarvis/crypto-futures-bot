@@ -47,38 +47,53 @@ DAILY → 4 HOURS → 1 HOUR → 15 MINUTES
 (context)  (trend)  (confirm)  (execution)
 ```
 
+## Signal Strength (Divergence-First)
+
+| Divergence Timeframes | Strength | Requirement |
+|----------------------|----------|-------------|
+| **3+ timeframes** | STRONG | Sent to Mike directly — no confirmation needed |
+| **2 timeframes** | MEDIUM | Needs at least 1 confirmation before sending to Mike |
+| **1 timeframe** | WEAK | Skipped entirely |
+
 ## 4. Entry Rules — LONG
 
-### Mandatory (ALL required)
-1. RSI oversold (lower band)
-2. Bullish divergence: price lower low + RSI higher low
-3. Divergence on at least 2 timeframes
+### Primary (required)
+1. Bullish divergence: price lower low + RSI higher low
+2. Divergence on at least 2 timeframes
 
-### Confirmation (at least 1)
-4. Hammer candle (long lower wick, small body top)
-5. Wick with retraction (price tested level, rejected)
-6. Bounce off MA 21 or MA 100
+### Confirmation (required for medium-strength signals)
+3. Hammer candle (long lower wick, small body top)
+4. Wick with retraction (price tested level, rejected)
+5. Bounce off MA 21 or MA 100
 
-### Filters
-- BTC not in sharp decline or extreme volatility
-- MAs on 4h in bullish order or crossing bullish
-- If crypto already dropped 5-7% daily → safer for long
+### Advisory Context (sent to Mike, not hard gates)
+- RSI level (closer to oversold ≤32 = stronger signal)
+- BTC state (bullish = favorable, crashing = ⚠️)
+- MAs on 4h alignment
+- Daily drop 5-7% = better entry opportunity
+
+### Hard Blocks (still enforced)
+- BTC emergency wick >3% → no trades
+- BTC in freefall → no longs
 
 ## 5. Entry Rules — SHORT
 
-### Mandatory (ALL required)
-1. RSI overbought (upper band)
-2. Bearish divergence: price higher high + RSI lower high
-3. Divergence on at least 2 timeframes
+### Primary (required)
+1. Bearish divergence: price higher high + RSI lower high
+2. Divergence on at least 2 timeframes
 
-### Confirmation (at least 1)
-4. Detachment from MA 9 (2-3 candles away)
-5. MAs in bearish order or crossing down
-6. Loss of momentum (smaller candles, rejection wicks)
+### Confirmation (required for medium-strength signals)
+3. Detachment from MA 9 (2-3 candles away)
+4. MAs in bearish order or crossing down
+5. Loss of momentum (smaller candles, rejection wicks)
 
-### Filters
-- BTC bearish or showing weakness
-- MAs on 4h in bearish order or crossing down
+### Advisory Context (sent to Mike, not hard gates)
+- RSI level (closer to overbought ≥68 = stronger signal)
+- BTC state (bearish = favorable for shorts)
+- MAs on 4h alignment
+
+### Hard Blocks (still enforced)
+- BTC emergency wick >3% → no trades
 
 ## 6. Exit Rules
 

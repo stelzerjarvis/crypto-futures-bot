@@ -33,7 +33,12 @@ class Divergence4MAStrategy(Strategy):
     name = "divergence_4ma"
     min_bars = 320
     entry_timeframe = "15m"
-    required_timeframes = 2
+    # Divergence-first: strong (3+ TF) needs no confirmation,
+    # medium (2 TF) needs 1 confirmation, weak (1 TF) is skipped.
+    strong_timeframes = 3       # divergence on 3+ TF → send straight to Mike
+    medium_timeframes = 2       # divergence on 2 TF → need 1 confirmation
+    min_timeframes = 2          # below this → skip
+    # RSI is advisory context, not a hard gate
     oversold = 32.0
     overbought = 68.0
     drop_threshold = 0.05
@@ -116,28 +121,38 @@ class Divergence4MAStrategy(Strategy):
         entry_snapshot = self._get_snapshot(self.asset_context, self.entry_timeframe)
         if entry_snapshot is None:
             return None
-        rsi = entry_snapshot.rsi
-        if rsi is None or rsi > self.oversold:
-            return None
-        if not self._has_divergence(entry_snapshot, "bullish"):
-            return None
+
+        # Primary driver: divergence across timeframes
         aligned = self._divergence_timeframes("bullish")
-        if len(aligned) < self.required_timeframes:
+        if len(aligned) < self.min_timeframes:
             return None
+
+        # Determine signal strength
+        strength = "strong" if len(aligned) >= self.strong_timeframes else "medium"
+
+        # Medium signals need at least 1 confirmation
         confirmations = self._long_confirmations(entry_snapshot)
-        if len(confirmations) < self.min_confirmations:
+        if strength == "medium" and len(confirmations) < self.min_confirmations:
             return None
-        filters_ok, filter_notes = self._long_filters()
-        if not filters_ok:
+
+        # BTC emergency is still a hard block
+        if self._btc_emergency or self._btc_crashing:
             return None
+
+        # RSI and filters are advisory context (sent to Mike, not hard gates)
+        rsi = entry_snapshot.rsi
+        _, filter_notes = self._long_filters_advisory()
+
         entry_price = entry_snapshot.price
         stop_loss = self._calc_stop_loss(entry_snapshot, "LONG")
         take_profit = self._calc_take_profit(entry_snapshot)
+
+        rsi_note = f"RSI={rsi:.1f}" if rsi is not None else "RSI=N/A"
         reason = " / ".join(
             [
-                "RSI oversold",
-                "bullish divergence",
-                f"confirmed on {', '.join(aligned)}",
+                f"{strength} bullish divergence",
+                f"aligned on {', '.join(aligned)}",
+                rsi_note,
             ]
         )
         return EntrySignal(
@@ -157,28 +172,38 @@ class Divergence4MAStrategy(Strategy):
         entry_snapshot = self._get_snapshot(self.asset_context, self.entry_timeframe)
         if entry_snapshot is None:
             return None
-        rsi = entry_snapshot.rsi
-        if rsi is None or rsi < self.overbought:
-            return None
-        if not self._has_divergence(entry_snapshot, "bearish"):
-            return None
+
+        # Primary driver: divergence across timeframes
         aligned = self._divergence_timeframes("bearish")
-        if len(aligned) < self.required_timeframes:
+        if len(aligned) < self.min_timeframes:
             return None
+
+        # Determine signal strength
+        strength = "strong" if len(aligned) >= self.strong_timeframes else "medium"
+
+        # Medium signals need at least 1 confirmation
         confirmations = self._short_confirmations(entry_snapshot)
-        if len(confirmations) < self.min_confirmations:
+        if strength == "medium" and len(confirmations) < self.min_confirmations:
             return None
-        filters_ok, filter_notes = self._short_filters()
-        if not filters_ok:
+
+        # BTC emergency is still a hard block
+        if self._btc_emergency:
             return None
+
+        # RSI and filters are advisory context (sent to Mike, not hard gates)
+        rsi = entry_snapshot.rsi
+        _, filter_notes = self._short_filters_advisory()
+
         entry_price = entry_snapshot.price
         stop_loss = self._calc_stop_loss(entry_snapshot, "SHORT")
         take_profit = self._calc_take_profit(entry_snapshot)
+
+        rsi_note = f"RSI={rsi:.1f}" if rsi is not None else "RSI=N/A"
         reason = " / ".join(
             [
-                "RSI overbought",
-                "bearish divergence",
-                f"confirmed on {', '.join(aligned)}",
+                f"{strength} bearish divergence",
+                f"aligned on {', '.join(aligned)}",
+                rsi_note,
             ]
         )
         return EntrySignal(
@@ -217,37 +242,32 @@ class Divergence4MAStrategy(Strategy):
             confirmations.append("momentum_loss")
         return confirmations
 
-    # Filters ----------------------------------------------------------
-    def _long_filters(self) -> tuple[bool, list[str]]:
+    # Filters (advisory — passed to Mike as context, not hard gates) ----
+    def _long_filters_advisory(self) -> tuple[bool, list[str]]:
         notes: list[str] = []
+        notes.append(f"btc_state={self._btc_state}")
         if self._btc_crashing:
-            notes.append("btc_crashing")
-            return False, notes
-        notes.append(f"btc_state={self._btc_state}")
+            notes.append("⚠️ btc_crashing")
         ma_ok = self._ma_filter("bullish")
-        if not ma_ok:
-            notes.append("4h_ma_not_bullish")
-        else:
-            notes.append("4h_ma_bullish")
+        notes.append("4h_ma_bullish" if ma_ok else "⚠️ 4h_ma_not_bullish")
         drop_ok = self._daily_drop_ok()
-        if not drop_ok:
-            notes.append("daily_drop_missing")
-        else:
-            notes.append("daily_drop_ok")
-        return bool(ma_ok and drop_ok), notes
+        notes.append("daily_drop_ok" if drop_ok else "daily_drop_missing")
+        all_ok = ma_ok and drop_ok and not self._btc_crashing
+        return all_ok, notes
 
-    def _short_filters(self) -> tuple[bool, list[str]]:
+    def _short_filters_advisory(self) -> tuple[bool, list[str]]:
         notes: list[str] = []
-        if self._btc_state not in {"bearish", "sideways"}:
-            notes.append(f"btc_state={self._btc_state}")
-            return False, notes
         notes.append(f"btc_state={self._btc_state}")
+        if self._btc_state not in {"bearish", "sideways"}:
+            notes.append("⚠️ btc_not_bearish")
         ma_ok = self._ma_filter("bearish")
-        if not ma_ok:
-            notes.append("4h_ma_not_bearish")
-        else:
-            notes.append("4h_ma_bearish")
-        return bool(ma_ok), notes
+        notes.append("4h_ma_bearish" if ma_ok else "⚠️ 4h_ma_not_bearish")
+        all_ok = ma_ok and self._btc_state in {"bearish", "sideways"}
+        return all_ok, notes
+
+    # Legacy aliases for backward compatibility
+    _long_filters = _long_filters_advisory
+    _short_filters = _short_filters_advisory
 
     def _ma_filter(self, desired: Literal["bullish", "bearish"]) -> bool:
         snapshot = self._get_snapshot(self.asset_context, "4h")
