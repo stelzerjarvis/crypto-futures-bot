@@ -29,15 +29,12 @@ class TelegramCommandBot:
         self.enabled = bool(self.token and self.chat_id)
         self._thread: threading.Thread | None = None
         self._application: Application | None = None
-        if self.enabled:
-            self._application = ApplicationBuilder().token(self.token).build()
-            self._register_handlers()
-        else:
+        if not self.enabled:
             self.logger.warning('Telegram command bot disabled — missing TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID')
 
     # -----------------------------------------------------------------
     def start(self) -> None:
-        if not self.enabled or not self._application:
+        if not self.enabled:
             return
         if self._thread and self._thread.is_alive():
             return
@@ -51,11 +48,15 @@ class TelegramCommandBot:
         self._run_polling()
 
     def _run_polling(self) -> None:
-        if not self._application:
-            return
         self.logger.info('Starting Telegram command bot …')
         try:
-            self._application.run_polling(stop_signals=None, allowed_updates=Update.ALL_TYPES)
+            # Python 3.9: threads don't have an event loop by default
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            app = ApplicationBuilder().token(self.token).build()
+            self._application = app
+            self._register_handlers()
+            app.run_polling(stop_signals=None, allowed_updates=Update.ALL_TYPES)
         except Exception as exc:  # noqa: BLE001
             self.logger.error('Telegram bot stopped: %s', exc, exc_info=True)
 
