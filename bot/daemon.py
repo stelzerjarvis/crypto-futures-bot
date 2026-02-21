@@ -129,6 +129,7 @@ class TradingDaemon:
         # bot token. Use JARVIS for /balance, /positions etc. Notifier (send-only)
         # still works for trade alerts.
         # self.telegram_bot.start()
+        self.logger.info('Entering main loop. Next analysis at %s', self._next_analysis.strftime('%H:%M:%S'))
         while True:
             now = datetime.now(timezone.utc)
             try:
@@ -136,8 +137,10 @@ class TradingDaemon:
                     self._last_minute_check = now
                     self._minute_cycle()
                 if now >= self._next_analysis:
+                    self.logger.info('Running analysis cycle @ %s', now.strftime('%H:%M'))
                     self._analysis_cycle(now)
                     self._next_analysis = self._next_boundary(now, self.ANALYSIS_INTERVAL)
+                    self.logger.info('Next analysis at %s', self._next_analysis.strftime('%H:%M:%S'))
                 if now >= self._next_summary:
                     self._send_summary(now)
                     self._next_summary = now + self.summary_interval

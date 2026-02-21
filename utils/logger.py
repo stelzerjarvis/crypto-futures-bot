@@ -30,5 +30,12 @@ def get_logger(name: str = "bot") -> logging.Logger:
     handler = logging.StreamHandler()
     handler.setFormatter(ColorFormatter("%(message)s"))
     logger.addHandler(handler)
+    # Also log to file (unbuffered) for reliable log capture
+    import os, sys
+    log_file = os.environ.get("BOT_LOG_FILE")
+    if log_file:
+        fh = logging.FileHandler(log_file, mode="a")
+        fh.setFormatter(logging.Formatter("%(asctime)s | %(levelname)-8s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S"))
+        logger.addHandler(fh)
     logger.propagate = False
     return logger
