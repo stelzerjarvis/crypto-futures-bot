@@ -125,7 +125,10 @@ class TradingDaemon:
         equity = self._account_equity()
         if equity is not None:
             self.vault.initialize(equity)
-        self.telegram_bot.start()
+        # Note: Telegram command bot disabled to avoid conflict with OpenClaw's
+        # bot token. Use JARVIS for /balance, /positions etc. Notifier (send-only)
+        # still works for trade alerts.
+        # self.telegram_bot.start()
         while True:
             now = datetime.now(timezone.utc)
             try:
