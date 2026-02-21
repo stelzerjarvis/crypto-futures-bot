@@ -47,7 +47,7 @@ def asset_key(symbol: str) -> str:
 class TradingDaemon:
     LOOP_SLEEP_SECONDS = 5
     MINUTE_INTERVAL = timedelta(seconds=60)
-    ANALYSIS_INTERVAL = timedelta(minutes=15)
+    ANALYSIS_INTERVAL = timedelta(minutes=2)
     DAILY_INTERVAL = timedelta(hours=24)
 
     def __init__(self, settings: Settings):
